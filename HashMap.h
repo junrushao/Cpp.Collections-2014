@@ -22,19 +22,31 @@ public:
 		Kp key;
 		Vp value;
 
-		Entry(Kp key, Vp value): key(key), value(value) {
-		}
-
 	public:
 		Entry(): key(NULL), value(NULL) {
 		}
-		
-		K getKey() const {
+		Entry(const K &key, const V &value): key(new K(key)), value(new V(value)) {
+		}
+		Entry(const Entry &other): key(other.key ? new K(*other.key) : NULL), value(other.value ? new V(*other.value) : NULL) {
+		}
+		Entry& operator = (const Entry &other) {
+			if (this != &other) {
+				if (key) delete key;
+				if (value) delete value;
+				key = other.key ? new K(*other.key) : NULL;
+				value = other.value ? new V(*other.value) : NULL;
+			}
+			return *this;
+		}
+		const K& getKey() const {
 			return *key;
 		}
-		
-		V getValue() const {
+		const V& getValue() const {
 			return *value;
+		}
+		~Entry() {
+			if (key) delete key;
+			if (value) delete value;
 		}
 	};
 	
@@ -151,7 +163,7 @@ public:
 			if (!hasNext())
 				throw ElementNotExist("");
 			p = p->r;
-			return Entry(p->key, p->value);
+			return Entry(*p->key, *p->value);
 		}
 	};
 

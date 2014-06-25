@@ -14,7 +14,7 @@ private:
 
 	unsigned seed;
 	unsigned nextUnsigned() {
-		return seed = (unsigned)(seed * 48271LL % 2147483647);
+		return seed = (unsigned)((long long)seed * 48271LL % 2147483647LL);
 	}
 
 public:
@@ -25,15 +25,30 @@ public:
 		Kp key;
 		Vp value;
 	public:
-		Entry(const Kp &key, const Vp &value): key(key), value(value) {
+		Entry(): key(NULL), value(NULL) {
 		}
-		Entry(const Entry &other): key(other.key), value(other.value) {
+		Entry(const K &key, const V &value): key(new K(key)), value(new V(value)) {
+		}
+		Entry(const Entry &other): key(other.key ? new K(*other.key) : NULL), value(other.value ? new V(*other.value) : NULL) {
+		}
+		Entry& operator = (const Entry &other) {
+			if (this != &other) {
+				if (key) delete key;
+				if (value) delete value;
+				key = other.key ? new K(*other.key) : NULL;
+				value = other.value ? new V(*other.value) : NULL;
+			}
+			return *this;
 		}
 		const K& getKey() const {
 			return *key;
 		}
 		const V& getValue() const {
 			return *value;
+		}
+		~Entry() {
+			if (key) delete key;
+			if (value) delete value;
 		}
 	};
 
@@ -196,7 +211,7 @@ public:
 					p = p->pre;
 				} while (p != null && p->ch[0] != last);
 			}
-			return Entry(ret->key, ret->value);
+			return Entry(*ret->key, *ret->value);
 		}
 	};
 	
