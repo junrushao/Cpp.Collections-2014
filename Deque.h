@@ -56,7 +56,7 @@ public:
 
 	class Iterator {
 	private:
-		const bool dir;
+		bool dir;
 		Deque<T> *from;
 		int lastPos, nextPos;
 	public:
