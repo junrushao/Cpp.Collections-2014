@@ -192,7 +192,7 @@ public:
 			for (p = from->root; p->ch[0] != null; p = p->ch[0]);
 		}
 
-		bool hasNext() {
+		bool hasNext() const {
 			return from != NULL && p != from->null;
 		}
 		
@@ -247,8 +247,8 @@ public:
 		x.cloneTo(root, null);
 	}
 	
-	Iterator iterator() {
-		return Iterator(this);
+	Iterator iterator() const {
+		return Iterator(const_cast<TreeMap<K, V>*>(this));
 	}
 
 	void clear() {
@@ -261,7 +261,7 @@ public:
 		return searchForKey(key) != null;
 	}
 
-	bool containsValue(const V &value) {
+	bool containsValue(const V &value) const {
 		for (Iterator itr(iterator()); itr.hasNext(); )
 			if (*itr.next().value == value)
 				return true;

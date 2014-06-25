@@ -71,7 +71,7 @@ public:
 				lastPos = -1, nextPos = (int)from->size() - 1;
 		}
 
-		bool hasNext() {
+		bool hasNext() const {
 			return from != NULL && 0 <= nextPos && nextPos < from->size();
 		}
 
@@ -150,13 +150,13 @@ public:
 		return head == tail;
 	}
 
-	const T& getFirst() {
+	const T& getFirst() const {
 		if (head == tail)
 			throw ElementNotExist("");
 		return *queue[head & (capacity - 1)];
 	}
 
-	const T& getLast() {
+	const T& getLast() const {
 		if (head == tail)
 			throw ElementNotExist("");
 		return *queue[(tail - 1) & (capacity - 1)];
@@ -178,7 +178,7 @@ public:
 		queue[p] = NULL;
 	}
 
-	const T& get(int index) {
+	const T& get(int index) const {
 		int pos = head + index;
 		if (!(head <= pos && pos < tail))
 			throw IndexOutOfBound("");
@@ -199,12 +199,12 @@ public:
 		return tail - head;
 	}
 
-	Iterator iterator() {
-		return Iterator(false, this);
+	Iterator iterator() const {
+		return Iterator(false, const_cast<Deque<T>*> (this) );
 	}
 
-	Iterator descendingIterator() {
-		return Iterator(true, this);
+	Iterator descendingIterator() const {
+		return Iterator(true, const_cast<Deque<T>*> (this) );
 	}
 };
 

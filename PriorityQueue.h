@@ -129,7 +129,7 @@ public:
 		Iterator(): pq(NULL), lastPos(-1), nextPos(-1), extraPos(-1) {
 		}
 
-		bool hasNext() {
+		bool hasNext() const {
 			return pq != NULL && ((0 <= nextPos && nextPos < pq->_size) || extraPos != -1);
 		}
 
@@ -188,8 +188,8 @@ public:
 		}
 	}
 
-	Iterator iterator() {
-		return Iterator(this);
+	Iterator iterator() const {
+		return Iterator(const_cast< PriorityQueue<V, C>* >(this));
 	}
 
 	void clear() {

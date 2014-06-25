@@ -50,7 +50,7 @@ public:
 			list(list), lastPos(list->header), nextPos(lastPos->next) {
 		}
 
-		bool hasNext() {
+		bool hasNext() const {
 			return list != NULL && nextPos != list->header;
 		}
 		

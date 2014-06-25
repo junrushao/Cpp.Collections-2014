@@ -155,7 +155,7 @@ public:
 		Iterator(const HashMap<K, V, H> &hmap): header(hmap.header), p(header) {
 		}
 
-		bool hasNext() {
+		bool hasNext() const {
 			return header != NULL && p != NULL && p->r != header;
 		}
 
