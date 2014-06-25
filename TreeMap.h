@@ -3,17 +3,8 @@
 #ifndef __TREEMAP_H
 #define __TREEMAP_H
 
-#define _DEBUG
-#ifdef _DEBUG
-	#include "memwatch.h"
-#endif
-
 #include <ctime>
 #include "ElementNotExist.h"
-#include "Utility.h"
-
-#define getNode()		(	(Node *) malloc	(sizeof(Node))	)
-#define getType(type)	(	(type *) malloc	(sizeof(type))	)
 
 template <class K, class V>
 class TreeMap {
@@ -57,17 +48,15 @@ private:
 			ch[0] = ch[1] = this;
 		}
 		Node(const K &key, const V &value, int prio, Node *null):
-			key(new (getType(K)) K(key)), value(new (getType(V)) V(value)), prio(prio), pre(null) {
+			key(new K(key)), value(new V(value)), prio(prio), pre(null) {
 			ch[0] = ch[1] = null;
 		}
 		~Node() {
 			if (key) {
-				key->~K();
-				free(key);
+				delete key;
 			}
 			if (value) {
-				value->~V();
-				free(value);
+				delete value;
 			}
 		}
 	};
@@ -82,13 +71,12 @@ private:
 		if (t == null) return;
 		deleteTree(t->ch[0]);
 		deleteTree(t->ch[1]);
-		t->~Node();
-		free(t);
+		delete t;
 	}
 
 	Tree cloneTree(Tree t, Tree newNull) const {
 		if (t == null) return newNull;
-		Tree ret = new (getNode()) Node(*t->key, *t->value, t->prio, newNull);
+		Tree ret = new Node(*t->key, *t->value, t->prio, newNull);
 		Tree lc = ret->ch[0] = cloneTree(t->ch[0], newNull);
 		Tree rc = ret->ch[1] = cloneTree(t->ch[1], newNull);
 		if (lc != newNull) lc->pre = ret;
@@ -97,7 +85,7 @@ private:
 	}
 
 	void cloneTo(Tree &newRoot, Tree &newNull) const {
-		newNull = new (getNode()) Node();
+		newNull = new Node();
 		newRoot = cloneTree(root, newNull);
 		newRoot->pre = newNull;
 	}
@@ -111,16 +99,15 @@ private:
 		x->pre = y;
 		x = y;
 	}
-	
+
 	bool insert(Tree &x, const K &key, const V &value) {
 		if (x == null) {
-			x = new (getNode()) Node(key, value, nextUnsigned(), null);
+			x = new Node(key, value, nextUnsigned(), null);
 			return true;
 		}
 		if (*x->key == key) {
-			x->value->~V();
-			free(x->value);
-			x->value = new (getNode()) V(value);
+			delete x->value;
+			x->value = new V(value);
 			return false;
 		}
 		int d = *x->key < key;
@@ -134,14 +121,12 @@ private:
 	Tree downToLeaf(Tree x) {
 		if (x->ch[0] == null) {
 			Tree ret = x->ch[1];
-			x->~Node();
-			free(x);
+			delete x;
 			return ret;
 		}
 		if (x->ch[1] == null) {
 			Tree ret = x->ch[0];
-			x->~Node();
-			free(x);
+			delete x;
 			return ret;
 		}
 		int d = x->ch[0]->prio < x->ch[1]->prio;
@@ -151,7 +136,7 @@ private:
 			x->ch[d]->pre = x;
 		return x;
 	}
-	
+
 	bool erase(Tree &x, const K &key) {
 		if (x == null) return false;
 		if (*x->key != key) {
@@ -199,7 +184,7 @@ public:
 		const Entry next() {
 			Tree null = from->null;
 			if (!hasNext())
-				throw ElementNotExist(toString(__LINE__));
+				throw ElementNotExist("");
 			Tree ret = p;
 			if (p->ch[1] != null) {
 				for (p = p->ch[1]; p->ch[0] != null; p = p->ch[0]);
@@ -215,14 +200,13 @@ public:
 		}
 	};
 	
-	TreeMap(): seed((unsigned int)time(NULL)), _size(0), null(new (getNode()) Node()), root(null) {
+	TreeMap(): seed((unsigned int)time(NULL)), _size(0), null(new Node()), root(null) {
 	}
 
 	~TreeMap() {
 		deleteTree(root);
 		if (null) {
-			null->~Node();
-			free(null);
+			delete null;
 		}
 	}
 	
@@ -232,8 +216,7 @@ public:
 			seed = x.seed;
 			
 			if (null) {
-				null->~Node();
-				free(null);
+				delete null;
 			}
 
 			deleteTree(root);
@@ -273,7 +256,7 @@ public:
 	const V& get(const K &key) const {
 		Tree ret = searchForKey(key);
 		if (ret == null)
-			throw ElementNotExist(toString(__LINE__));
+			throw ElementNotExist("");
 		return *ret->value;
 	}
 
@@ -288,7 +271,7 @@ public:
 
 	void remove(const K &key) {
 		if (!erase(root, key))
-			throw ElementNotExist(toString(__LINE__));
+			throw ElementNotExist("");
 		root->pre = null;
 		--_size;
 	}
@@ -297,8 +280,5 @@ public:
 		return _size;
 	}
 };
-
-#undef getNode
-#undef getType
 
 #endif /* __TREEMAP_H */

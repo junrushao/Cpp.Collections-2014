@@ -1,20 +1,10 @@
 /** @file */
+
 #ifndef __DEQUE_H
 #define __DEQUE_H
 
-#include <cassert>
-
-#define _DEBUG
-#ifdef _DEBUG
-	#include "memwatch.h"
-#endif
-
 #include "ElementNotExist.h"
 #include "IndexOutOfBound.h"
-#include "Utility.h"
-
-#define getNode() ((Tp)malloc(sizeof(T)))
-#define getArray(size) ((Tp*) malloc(sizeof(T) * size))
 
 template <class T>
 class Deque {
@@ -27,13 +17,12 @@ private:
 
 	void doubleCapacity() {
 		int newCapacity = (capacity == 0) ? (16) : (capacity << 1);
-		Tp *newQueue = getArray(newCapacity);
+		Tp *newQueue = new Tp[newCapacity];
 		for (int i = 0; i < newCapacity; ++i)
 			newQueue[i] = NULL;
 		for (int i = head, pos = 0; i < tail; ++i)
 			newQueue[pos++] = queue[i & (capacity - 1)];
-		if (queue != NULL)
-			free(queue);
+		if (queue != NULL) delete[] queue;
 		tail -= head;
 		head = 0;
 		capacity = newCapacity;
@@ -44,20 +33,19 @@ private:
 		otherHead = 0;
 		otherTail = 0;
 		otherCapacity = capacity;
-		otherQueue = getArray(otherCapacity);
+		otherQueue = new Tp[otherCapacity];
 		for (int i = 0; i < otherCapacity; ++i)
 			otherQueue[i] = NULL;
 		for (int i = head; i < tail; ++i)
-			otherQueue[otherTail++] = new (getNode()) T(*queue[i & (otherCapacity - 1)]);
+			otherQueue[otherTail++] = new T(*queue[i & (otherCapacity - 1)]);
 	}
 
 	void removeIdx(int index) {
 		int pos = head + index;
 		if (!(head <= pos && pos < tail))
-			throw IndexOutOfBound(toString(__LINE__));
+			throw IndexOutOfBound("");
 		int p = pos & (capacity - 1);
-		queue[p]->~T();
-		free(queue[p]);
+		delete queue[p];
 		queue[p] = NULL;
 		for (int i = pos + 1; i < tail; ++i)
 			queue[(i - 1) & (capacity - 1)] = queue[i & (capacity - 1)];
@@ -89,7 +77,7 @@ public:
 
 		const T &next() {
 			if (!hasNext())
-				throw ElementNotExist(toString(__LINE__));
+				throw ElementNotExist("");
 			lastPos = nextPos;
 			nextPos = nextPos + (dir ? -1 : 1);
 			return from->get(lastPos);
@@ -97,10 +85,15 @@ public:
 		
 		void remove() {
 			if (!(from != NULL && lastPos != -1))
-				throw ElementNotExist(toString(__LINE__));
+				throw ElementNotExist("");
 			from->removeIdx(lastPos);
-			nextPos = lastPos;
-			lastPos = -1;
+			if (dir == false) {
+				nextPos = lastPos;
+				lastPos = -1;
+			}
+			else {
+				lastPos = -1;
+			}
 		}
 	};
 
@@ -126,13 +119,13 @@ public:
 	void addFirst(const T& e) {
 		if (tail - head == capacity)
 			doubleCapacity();
-		queue[--head & (capacity - 1)] = new (getNode()) T(e);
+		queue[--head & (capacity - 1)] = new T(e);
 	}
 
 	void addLast(const T& e) {
 		if (tail - head == capacity)
 			doubleCapacity();
-		queue[tail++ & (capacity - 1)] = new (getNode()) T(e);
+		queue[tail++ & (capacity - 1)] = new T(e);
 	}
 
 	bool contains(const T& e) const {
@@ -144,11 +137,10 @@ public:
 
 	void clear() {
 		for (int i = head; i < tail; ++i) {
-			queue[i & (capacity - 1)]->~T();
-			free(queue[i & (capacity - 1)]);
+			delete queue[i & (capacity - 1)];
+			queue[i & (capacity - 1)] = NULL;
 		}
-		if (queue)
-			free(queue);
+		if (queue) delete[] queue;
 		head = tail = 0;
 		capacity = 0;
 		queue = NULL;
@@ -160,38 +152,36 @@ public:
 
 	const T& getFirst() {
 		if (head == tail)
-			throw ElementNotExist(toString(__LINE__));
+			throw ElementNotExist("");
 		return *queue[head & (capacity - 1)];
 	}
 
 	const T& getLast() {
 		if (head == tail)
-			throw ElementNotExist(toString(__LINE__));
+			throw ElementNotExist("");
 		return *queue[(tail - 1) & (capacity - 1)];
 	}
 
 	void removeFirst() {
 		if (head == tail)
-			throw ElementNotExist(toString(__LINE__));
+			throw ElementNotExist("");
 		int p = head++ & (capacity - 1);
-		queue[p]->~T();
-		free(queue[p]);
+		delete queue[p];
 		queue[p] = NULL;
 	}
 
 	void removeLast() {
 		if (head == tail)
-			throw ElementNotExist(toString(__LINE__));
+			throw ElementNotExist("");
 		int p = --tail & (capacity - 1);
-		queue[p]->~T();
-		free(queue[p]);
+		delete queue[p];
 		queue[p] = NULL;
 	}
 
 	const T& get(int index) {
 		int pos = head + index;
 		if (!(head <= pos && pos < tail))
-			throw IndexOutOfBound(toString(__LINE__));
+			throw IndexOutOfBound("");
 		pos &= capacity - 1;
 		return *queue[pos];
 	}
@@ -199,11 +189,10 @@ public:
 	void set(int index, const T& e) {
 		int pos = head + index;
 		if (!(head <= pos && pos < tail))
-			throw IndexOutOfBound(toString(__LINE__));
+			throw IndexOutOfBound("");
 		pos &= capacity - 1;
-		queue[pos]->~T();
-		free(queue[pos]);
-		queue[pos] = new (getNode()) T(e);
+		delete queue[pos];
+		queue[pos] = new T(e);
 	}
 
 	int size() const {
@@ -218,8 +207,5 @@ public:
 		return Iterator(true, this);
 	}
 };
-
-#undef getNode
-#undef getArray
 
 #endif

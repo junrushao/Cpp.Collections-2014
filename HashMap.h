@@ -3,18 +3,7 @@
 #ifndef __HASHMAP_H
 #define __HASHMAP_H
 
-#define _DEBUG
-#ifdef _DEBUG
-	#include "memwatch.h"
-#endif
-
-#include <cassert>
 #include "ElementNotExist.h"
-#include "Utility.h"
-
-#define getNode()		(	(Node*)		malloc		(sizeof(Node)		)		)
-#define getType(type)	(	(type*)		malloc		(sizeof(type)		)		)
-#define getArray(size)	(	(List*)		malloc		(sizeof(List) * size)		)
 
 template<class K, class V, class H>
 class HashMap {
@@ -22,7 +11,7 @@ private:
 	typedef K* Kp;
 	typedef V* Vp;
 	H getHashCode;
-	
+
 public:
 
 	class Iterator;
@@ -60,21 +49,19 @@ private:
 		}
 
 		Node(const K &key, const V &value):
-			key(new (getType(K)) K(key)), value(new (getType(V)) V(value)), hashCode(getHashCode.hashCode(key)), next(NULL), l(NULL), r(NULL) {
+			key(new K(key)), value(new V(value)), hashCode(getHashCode.hashCode(key)), next(NULL), l(NULL), r(NULL) {
 		}
 
 		Node(const K &key, const V &value, const int &hashCode):
-			key(new (getType(K)) K(key)), value(new (getType(V)) V(value)), hashCode(hashCode), next(NULL), l(NULL), r(NULL) {
+			key(new K(key)), value(new V(value)), hashCode(hashCode), next(NULL), l(NULL), r(NULL) {
 		}
 
 		~Node() {
 			if (key) {
-				key->~K();
-				free(key);
+				delete key;
 			}
 			if (value) {
-				value->~V();
-				free(value);
+				delete value;
 			}
 		}
 	};
@@ -93,7 +80,7 @@ private:
 	void ensureCapacity(int cap) {
 		if (capacity * LOAD_FACTOR < cap) {
 			capacity = TABLE_SIZE[++hashModPtr];
-			List* newPool = getArray(capacity);
+			List* newPool = new List[capacity];
 			for (int i = 0; i < capacity; ++i) newPool[i] = NULL;
 
 			int cnt = 0;
@@ -104,7 +91,7 @@ private:
 				newPool[h] = p;
 				++cnt;
 			}
-			if (pool) free(pool);
+			if (pool) delete[] pool;
 			pool = newPool;
 		}
 	}
@@ -113,13 +100,13 @@ private:
 		otherSize = _size;
 		otherHashModPtr = hashModPtr;
 		otherCapacity = capacity;
-		otherHeader = new ( getNode() ) Node();
-		otherPool = getArray(capacity);
+		otherHeader = new Node();
+		otherPool = new List[capacity];
 		for (int i = 0; i < capacity; ++i) otherPool[i] = NULL;
 		for (List p = header->r; p != header; p = p->r) {
-			List element = new (getNode()) Node();
-			element->key = new (getType(K)) K(*p->key);
-			element->value = new (getType(V)) V(*p->value);
+			List element = new Node();
+			element->key = new K(*p->key);
+			element->value = new V(*p->value);
 			element->hashCode = p->hashCode;
 			List l = element->l = otherHeader->l, r = element->r = otherHeader;
 			l->r = r->l = element;
@@ -134,14 +121,13 @@ private:
 		hashModPtr = 0;
 		capacity = 0;
 		if (pool) {
-			free(pool);
+			delete[] pool;
 			pool = NULL;
 		}
 
 		for (List p = header->r, next; p != header; p = next) {
 			next = p->r;
-			p->~Node();
-			free(p);
+			delete p;
 		}
 		header->l = header->r = header;
 	}
@@ -164,7 +150,7 @@ public:
 
 		Entry next() {
 			if (!hasNext())
-				throw ElementNotExist(toString(__LINE__));
+				throw ElementNotExist("");
 			p = p->r;
 			return Entry(p->key, p->value);
 		}
@@ -172,8 +158,8 @@ public:
 
 	HashMap(): 
 		getHashCode(), _size(0), hashModPtr(0), capacity(TABLE_SIZE[0]), 
-		header(new (getNode()) Node()),
-		pool(getArray(capacity)) {
+		header(new Node()),
+		pool(new List[capacity]) {
 		for (int i = 0; i < capacity; ++i)
 			pool[i] = NULL;
 	}
@@ -184,16 +170,14 @@ public:
 
 	~HashMap() {
 		destroy();
-		header->~Node();
-		free(header);
+		delete header;
 		header = NULL;
 	}
 
 	HashMap<K, V, H>& operator = (const HashMap<K, V, H> &other) {
 		if (this != &other) {
 			destroy();
-			header->~Node();
-			free(header);
+			delete header;
 			header = NULL;
 			getHashCode = other.getHashCode;
 			other.cloneTo(_size, hashModPtr, capacity, header, pool);
@@ -208,7 +192,7 @@ public:
 	void clear() {
 		destroy();
 		capacity = TABLE_SIZE[0];
-		pool = getArray(capacity);
+		pool = new List[capacity];
 		for (int i = 0; i < capacity; ++i) pool[i] = NULL;
 	}
 	
@@ -234,7 +218,7 @@ public:
 		for (List p = pool[h]; p; p = p->next)
 			if (p->hashCode == code && *p->key == key)
 				return *p->value;
-		throw ElementNotExist(toString(__LINE__));
+		throw ElementNotExist("");
 		return *header->value;
 	}
 	
@@ -247,12 +231,11 @@ public:
 		if (h < 0) h += capacity;
 		for (List p = pool[h]; p; p = p->next)
 			if (code == p->hashCode && *p->key == key) {
-				p->value->~V();
-				free(p->value);
-				p->value = new (getType(V)) V(value);
+				delete p->value;
+				p->value = new V(value);
 				return;
 			}
-		List p = new (getNode()) Node(key, value, code), l = p->l = header->l, r = p->r = header;
+		List p = new Node(key, value, code), l = p->l = header->l, r = p->r = header;
 		l->r = r->l = p;
 		p->next = pool[h];
 		pool[h] = p;
@@ -273,12 +256,11 @@ public:
 				List l = p->l, r = p->r;
 				l->r = r;
 				r->l = l;
-				p->~Node();
-				free(p);
+				delete p;
 				--_size;
 				return;
 			}
-		throw ElementNotExist(toString(__LINE__));
+		throw ElementNotExist("");
 	}
 	
 	int size() const {
@@ -301,9 +283,4 @@ const int HashMap<K, V, H>::TABLE_SIZE[] = {
 		268435459, 536870923, 1073741827 };
 */
 
-#undef getNode
-#undef getType
-#undef getArray
-
 #endif
-

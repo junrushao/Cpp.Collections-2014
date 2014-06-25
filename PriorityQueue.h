@@ -2,13 +2,6 @@
 #ifndef __PRIORITYQUEUE_H
 #define __PRIORITYQUEUE_H
 
-#define _DEBUG
-#ifdef _DEBUG
-	#include "memwatch.h"
-#endif
-
-#include <cassert>
-#include "Utility.h"
 #include "ArrayList.h"
 #include "ElementNotExist.h"
 
@@ -19,9 +12,6 @@ public:
 		return a < b;
 	}
 };
-
-#define getArray(size) ((Vp*)malloc(sizeof(Vp) * size))
-#define getNode() ((Vp)malloc(sizeof(V)))
 
 template<class V, class C = Less<V> >
 class PriorityQueue {
@@ -35,10 +25,10 @@ private:
 	int _size;
 
 	void cloneTo(Vp *&otherQueue, int &otherCapacity, int &otherSize) const {
-		otherQueue = getArray(capacity);
+		otherQueue = new Vp[capacity];
 		otherCapacity = capacity;
 		otherSize = _size;
-		for (int i = 0; i < _size; ++i) otherQueue[i] = new (getNode()) V(*queue[i]);
+		for (int i = 0; i < _size; ++i) otherQueue[i] = new V(*queue[i]);
 		for (int i = _size; i < capacity; ++i) otherQueue[i] = NULL;
 	}
 
@@ -47,11 +37,11 @@ private:
 			capacity <<= 1;
 			if (minCapacity > capacity) capacity = minCapacity;
 
-			Vp *newQueue = getArray(capacity);
+			Vp *newQueue = new Vp[capacity];
 			for (int i = 0; i < _size; ++i)
 				newQueue[i] = queue[i];
 			for (int i = _size; i < capacity; ++i) newQueue[i] = NULL;
-			if (queue) free(queue);
+			if (queue) delete[] queue;
 			queue = newQueue;
 		}
 	}
@@ -84,21 +74,18 @@ private:
 	}
 
 	int removeAt(int i, int limit) { // return where queue[_size - 1] has gone
-		assert(0 <= i && i < _size);
-		assert(i < limit);
 		int s = --_size;
 		if (s == i) {
-			queue[s]->~V();
-			free(queue[s]);
+			delete queue[s];
 			queue[s] = NULL;
 			return -1;
 		}
 		Vp x = queue[s];
 		queue[s] = NULL;
-		queue[i]->~V();
-		free(queue[i]);
+
+		delete queue[i];
 		queue[i] = NULL;
-		
+
 		int moveInside = i, k = i;
 		{ // siftDown
 			for (int child; (child = (k << 1) + 1) < _size; k = child) {
@@ -119,7 +106,6 @@ private:
 			if (k != i)
 				return moveInside;
 		}
-		assert(k == i && moveInside == i && queue[i] == x);
 		for (int parent; k > 0; k = parent) {
 			Vp e = queue[parent = (k - 1) >> 1];
 			if (!compare(*x, *e)) break; // x >= e
@@ -148,7 +134,7 @@ public:
 
 		const V &next() {
 			if (!hasNext())
-				throw ElementNotExist(toString(__LINE__));
+				throw ElementNotExist("");
 			Vp ret = NULL;
 			if (extraPos != -1) {
 				ret = pq->queue[extraPos];
@@ -165,7 +151,7 @@ public:
 
 		void remove() {
 			if (!pq || lastPos == -1)
-				throw ElementNotExist(toString(__LINE__));
+				throw ElementNotExist("");
 			int pos = pq->removeAt(lastPos, nextPos);
 			if (pos < nextPos) extraPos = pos;
 			lastPos = -1;
@@ -194,8 +180,8 @@ public:
 	PriorityQueue(const ArrayList<V> &x): queue(NULL), capacity(0), _size(x.size()) {
 		if (_size > 0) {
 			for (capacity = 11; capacity < _size; capacity <<= 1);
-			queue = getArray(capacity);
-			for (int i = 0; i < _size; ++i) queue[i] = new (getNode()) V(x.get(i));
+			queue = new Vp[capacity];
+			for (int i = 0; i < _size; ++i) queue[i] = new V(x.get(i));
 			for (int i = (_size >> 1) - 1; i >= 0; --i)
 				siftDown(i, queue[i]);
 		}
@@ -207,11 +193,10 @@ public:
 
 	void clear() {
 		for (int i = 0; i < _size; ++i) {
-			queue[i]->~V();
-			free(queue[i]);
+			delete queue[i];
 			queue[i] = NULL;
 		}
-		if (queue) free(queue);
+		if (queue) delete[] queue;
 		queue = NULL;
 		capacity = 0;
 		_size = 0;
@@ -219,7 +204,7 @@ public:
 
 	const V &front() const {
 		if (_size == 0)
-			throw ElementNotExist(toString(__LINE__));
+			throw ElementNotExist("");
 		return *queue[0];
 	}
 	
@@ -230,29 +215,25 @@ public:
 	void push(const V &value) {
 		if (_size >= capacity) grow(_size + 1);
 		++_size;
-		if (_size == 1) queue[0] = new (getNode()) V(value);
-		else siftUp(_size - 1, new (getNode()) V(value));
+		if (_size == 1) queue[0] = new V(value);
+		else siftUp(_size - 1, new V(value));
 	}
 
 	void pop() {
 		if (_size == 0)
-			throw ElementNotExist(toString(__LINE__));
+			throw ElementNotExist("");
 		int s = --_size;
 		Vp toRemove = queue[0];
 		Vp x = queue[s];
 		queue[s] = NULL;
 		if (s != 0)
 			siftDown(0, x);
-		toRemove->~V();
-		free(toRemove);
+		delete toRemove;
 	}
 
 	int size() const {
 		return _size;
 	}
 };
-
-#undef getArray
-#undef getNode
 
 #endif

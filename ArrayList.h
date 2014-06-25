@@ -3,17 +3,8 @@
 #ifndef __ARRAYLIST_H
 #define __ARRAYLIST_H
 
-#define _DEBUG
-#ifdef _DEBUG
-	#include "memwatch.h"
-#endif
-
 #include "IndexOutOfBound.h"
 #include "ElementNotExist.h"
-#include "Utility.h"
-
-#define getNode()		(	(T*)	malloc	(sizeof(T)			)	) 
-#define getArray(size)	(	(Tp*)	malloc	(sizeof(Tp) * size	)	)
 
 template <class T>
 class ArrayList {
@@ -26,11 +17,11 @@ private:
 	int capacity;
 
 	void cloneTo(Tp* &otherBase, int &otherSize, int &otherCapacity) const {
-		otherBase = getArray(capacity);
+		otherBase = new Tp[capacity];
 		otherSize = _size;
 		otherCapacity = capacity;
 		for (int i = 0; i < _size; ++i)
-			otherBase[i] = new (getNode()) T(*base[i]);
+			otherBase[i] = new T(*base[i]);
 		for (int i = _size; i < capacity; ++i)
 			otherBase[i] = NULL;
 	}
@@ -38,12 +29,12 @@ private:
 	void ensureCapacity(int cap) {
 		if (cap > capacity) {
 			capacity = std::max(capacity << 1, cap);
-			Tp* newArray = getArray(capacity);
+			Tp* newArray = new Tp[capacity];
 			for (int i = 0; i < _size; ++i)
 				newArray[i] = base[i];
 			for (int i = _size; i < capacity; ++i)
 				newArray[i] = NULL;
-			if (base) free(base);
+			if (base) delete[] base;
 			base = newArray;
 		}
 	}
@@ -54,17 +45,17 @@ private:
 			if (_size > capacity) {
 				for (int i = capacity; i < _size; ++i) {
 					if (base[i]) {
-						base[i]->~T();
-						free(base[i]);
+						delete base[i];
+						base[i] = NULL;
 					}
 				}
 				_size = capacity;
 			}
-			Tp *newArray = getArray(capacity);
+			Tp *newArray = new Tp[capacity];
 			for (int i = 0; i < _size; ++i) newArray[i] = base[i];
 			for (int i = _size; i < capacity; ++i) newArray[i] = NULL; 
 
-			if (base) free(base);
+			delete[] base;
 			base = newArray;
 		}
 	}
@@ -91,7 +82,7 @@ public:
 
 		const T& next() {
 			if (!hasNext())
-				throw ElementNotExist(toString(__LINE__));
+				throw ElementNotExist("");
 			lastPos = nextPos;
 			++nextPos;
 			return from->get(lastPos);
@@ -99,7 +90,7 @@ public:
 
 		void remove() {
 			if (!(from != NULL && 0 <= lastPos && lastPos < from->_size))
-				throw ElementNotExist(toString(__LINE__));
+				throw ElementNotExist("");
 			from->removeIndex(lastPos);
 			lastPos = -1;
 			--nextPos;
@@ -127,28 +118,28 @@ public:
 
 	bool add(const T& e) {
 		ensureCapacity(_size + 1);
-		base[_size++] = new (getNode()) T(e);
+		base[_size++] = new T(e);
 		return true;
 	}
 
 	void add(int idx, const T& e) {
 		if (!(0 <= idx && idx <= _size))
-			throw IndexOutOfBound(toString(__LINE__));
+			throw IndexOutOfBound("");
 		ensureCapacity(_size + 1);
 		for (int i = _size - 1; i >= idx; --i)
 			base[i + 1] = base[i];
-		base[idx] = new (getNode()) T(e);
+		base[idx] = new T(e);
 		++_size;
 	}
 
 	void clear() {
 		for (int i = 0; i < _size; ++i) {
 			if (base[i]) {
-				base[i]->~T();
-				free(base[i]);
+				delete base[i];
+				base[i] = NULL;
 			}
 		}
-		if (base) free(base);
+		if (base) delete[] base;
 		base = NULL;
 		_size = 0;
 		capacity = 0;
@@ -163,7 +154,7 @@ public:
 
 	const T& get(int idx) const {
 		if (!(0 <= idx && idx < _size))
-			throw IndexOutOfBound(toString(__LINE__));
+			throw IndexOutOfBound("");
 		return *base[idx];
 	}
 
@@ -173,10 +164,9 @@ public:
 
 	void removeIndex(int idx) {
 		if (!(0 <= idx && idx < _size))
-			throw IndexOutOfBound(toString(__LINE__));
+			throw IndexOutOfBound("");
 		if (base[idx]) {
-			base[idx]->~T();
-			free(base[idx]);
+			delete base[idx];
 		}
 		for (int i = idx + 1; i < _size; ++i)
 			base[i - 1] = base[i];
@@ -195,12 +185,11 @@ public:
 
 	void set(int idx, const T& e) {
 		if (!(0 <= idx && idx < _size))
-			throw IndexOutOfBound(toString(__LINE__));
+			throw IndexOutOfBound("");
 		if (base[idx]) {
-			base[idx]->~T();
-			free(base[idx]);
+			delete base[idx];
 		}
-		base[idx] = new (getNode()) T(e);
+		base[idx] = new T(e);
 	}
 
 	int size() const {
@@ -211,8 +200,5 @@ public:
 		return Iterator( const_cast<ArrayList<T>*> (this) );
 	}
 };
-
-#undef getNode
-#undef getArray
 
 #endif /* __ARRAYLIST_H */
