@@ -1,4 +1,5 @@
 /** @file */
+
 #ifndef __PRIORITYQUEUE_H
 #define __PRIORITYQUEUE_H
 

@@ -154,7 +154,7 @@ private:
 		for (Tree t = root; t != null; ) {
 			if (*t->key == key)
 				return t;
-			if (*t->key > key)
+			if (key < *t->key)
 				t = t->ch[0];
 			else
 				t = t->ch[1];

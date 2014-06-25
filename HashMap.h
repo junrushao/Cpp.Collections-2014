@@ -69,16 +69,15 @@ private:
 private:
 	typedef Node *List;
 
-	const static double LOAD_FACTOR = 0.50;
 	const static int TABLE_SIZE[];
-
+	
 	int _size;
 	int hashModPtr, capacity;
 	List header;
 	List *pool;
 
 	void ensureCapacity(int cap) {
-		if (capacity * LOAD_FACTOR < cap) {
+		if (capacity * 0.50 < cap) {
 			capacity = TABLE_SIZE[++hashModPtr];
 			List* newPool = new List[capacity];
 			for (int i = 0; i < capacity; ++i) newPool[i] = NULL;
