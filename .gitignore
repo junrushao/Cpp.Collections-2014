@@ -19,3 +19,11 @@
 *.exe
 *.out
 *.app
+
+# Input and output files
+*.in
+*.out
+
+# Log files
+*.log
+
