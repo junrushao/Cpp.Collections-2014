@@ -26,7 +26,6 @@ private:
 	Tp *queue;
 
 	void doubleCapacity() {
-		assert(tail - head == capacity);
 		int newCapacity = (capacity == 0) ? (16) : (capacity << 1);
 		Tp *newQueue = getArray(newCapacity);
 		for (int i = 0; i < newCapacity; ++i)
@@ -49,7 +48,7 @@ private:
 		for (int i = 0; i < otherCapacity; ++i)
 			otherQueue[i] = NULL;
 		for (int i = head; i < tail; ++i)
-			otherQueue[otherTail++] = queue[i & (otherCapacity - 1)];
+			otherQueue[otherTail++] = new (getNode()) T(*queue[i & (otherCapacity - 1)]);
 	}
 
 	void removeIdx(int index) {
@@ -90,7 +89,7 @@ public:
 			int next = lastPos + (dir ? -1 : 1);
 			if (!( 0 <= next && next < from->size() ))
 				throw ElementNotExist(toString(__LINE__));
-			return from->get(next);
+			return from->get(lastPos = next);
 		}
 		
 		void remove() {
@@ -141,8 +140,8 @@ public:
 
 	void clear() {
 		for (int i = head; i < tail; ++i) {
-			queue[i]->~T();
-			free(queue[i]);
+			queue[i & (capacity - 1)]->~T();
+			free(queue[i & (capacity - 1)]);
 		}
 		if (queue)
 			free(queue);
@@ -170,13 +169,19 @@ public:
 	void removeFirst() {
 		if (head == tail)
 			throw ElementNotExist(toString(__LINE__));
-		++head;
+		int p = head++ & (capacity - 1);
+		queue[p]->~T();
+		free(queue[p]);
+		queue[p] = NULL;
 	}
 
 	void removeLast() {
 		if (head == tail)
 			throw ElementNotExist(toString(__LINE__));
-		--tail;
+		int p = --tail & (capacity - 1);
+		queue[p]->~T();
+		free(queue[p]);
+		queue[p] = NULL;
 	}
 
 	const T& get(int index) {
@@ -194,7 +199,7 @@ public:
 		pos &= capacity - 1;
 		queue[pos]->~T();
 		free(queue[pos]);
-		queue[pos] = new (getNode) T(e);
+		queue[pos] = new (getNode()) T(e);
 	}
 
 	int size() const {

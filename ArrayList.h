@@ -12,8 +12,8 @@
 #include "ElementNotExist.h"
 #include "Utility.h"
 
-#define getNode() ( (Tp) malloc (sizeof(T)) ) 
-#define getArray(size) ( (Tp *)malloc(sizeof(Tp) * size) )
+#define getNode()		(	(T*)	malloc	(sizeof(T)			)	) 
+#define getArray(size)	(	(Tp*)	malloc	(sizeof(Tp) * size	)	)
 
 template <class T>
 class ArrayList {
@@ -31,16 +31,18 @@ private:
 		otherCapacity = capacity;
 		for (int i = 0; i < _size; ++i)
 			otherBase[i] = new (getNode()) T(*base[i]);
+		for (int i = _size; i < capacity; ++i)
+			otherBase[i] = NULL;
 	}
 
 	void ensureCapacity(int cap) {
 		if (cap > capacity) {
-			capacity = std::max(capacity * 2, cap);
+			capacity = std::max(capacity << 1, cap);
 			Tp* newArray = getArray(capacity);
-			for (int i = 0; i < capacity; ++i)
-				newArray[i] = NULL;
 			for (int i = 0; i < _size; ++i)
 				newArray[i] = base[i];
+			for (int i = _size; i < capacity; ++i)
+				newArray[i] = NULL;
 			if (base) free(base);
 			base = newArray;
 		}
@@ -59,8 +61,8 @@ private:
 				_size = capacity;
 			}
 			Tp *newArray = getArray(capacity);
-			for (int i = 0; i < capacity; ++i) newArray[i] = NULL; 
 			for (int i = 0; i < _size; ++i) newArray[i] = base[i];
+			for (int i = _size; i < capacity; ++i) newArray[i] = NULL; 
 
 			if (base) free(base);
 			base = newArray;
@@ -104,7 +106,7 @@ public:
 		clear();
 	}
 
-	ArrayList& operator = (const ArrayList<T>& rhs) {
+	ArrayList<T>& operator = (const ArrayList<T>& rhs) {
 		if (this != &rhs) {
 			clear();
 			rhs.cloneTo(base, _size, capacity);
@@ -112,7 +114,7 @@ public:
 		return *this;
 	}
 
-	ArrayList(const ArrayList<T>& x) {
+	ArrayList(const ArrayList<T>& x): base(NULL), _size(0), capacity(0) {
 		x.cloneTo(base, _size, capacity);
 	}
 
@@ -121,7 +123,7 @@ public:
 		base[_size++] = new (getNode()) T(e);
 		return true;
 	}
-	
+
 	void add(int idx, const T& e) {
 		if (!(0 <= idx && idx <= _size))
 			throw IndexOutOfBound(toString(__LINE__));
@@ -174,7 +176,7 @@ public:
 		base[--_size] = NULL;
 		trimToSize(_size);
 	}
-	
+
 	bool remove(const T &e) {
 		for (int i = 0; i < _size; ++i)
 			if (*base[i] == e) {
@@ -193,7 +195,7 @@ public:
 		}
 		base[idx] = new (getNode()) T(e);
 	}
-	
+
 	int size() const {
 		return _size;
 	}
@@ -201,7 +203,6 @@ public:
 	Iterator iterator() {
 		return Iterator(this, -1);
 	}
-
 };
 
 #undef getNode

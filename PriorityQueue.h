@@ -7,7 +7,6 @@
 	#include "memwatch.h"
 #endif
 
-#include <cassert>
 #include "Utility.h"
 #include "ArrayList.h"
 #include "ElementNotExist.h"
@@ -40,7 +39,7 @@ private:
 		Node(): key(NULL), dist(-1), lc(this), rc(this), fa(this), del(false) {
 		}
 
-		Node(const V &key, const Node *&null): key(new (getValue()) V(key)), dist(0), lc(null), rc(null), fa(null), del(false) {
+		Node(const V &key, Node *null): key(new (getValue()) V(key)), dist(0), lc(null), rc(null), fa(null), del(false) {
 		}
 
 		~Node() {
@@ -57,7 +56,7 @@ private:
 	Tree null, root;
 	C compare;
 
-	Tree* copyToTreeArray(int &otherSize, const Tree &otherNull) {
+	Tree* copyToTreeArray(int &otherSize, Tree otherNull) const {
 		if (root == null) return NULL;
 
 		int head = 0, tail = 0;
@@ -118,11 +117,17 @@ private:
 		if (a == null) ret = b;
 		else if (b == null) ret = a;
 		else {
-			if (compare(*b->key, *a->key)) // b->key < a->key
-				swap(a, b);
+			if (compare(*b->key, *a->key)) { // b->key < a->key
+				Tree tmp = a;
+				a = b;
+				b = tmp;
+			}
 			a->rc = merge(a->rc, b, a);
-			if (a->lc->dist < a->rc->dist)
-				swap(a->lc, a->rc);
+			if (a->lc->dist < a->rc->dist) {
+				Tree tmp = a->lc;
+				a->lc = a->rc;
+				a->rc = tmp;
+			}
 			a->dist = a->rc->dist + 1;
 			ret = a;
 		}
@@ -131,17 +136,19 @@ private:
 		return ret;
 	}
 
-	void deleteNode(Tree t) {
+	void deleteNode(Tree t) { // only used for Iterator::~Iterator, with _size not changed
 		Tree y = t->fa, x = merge(t->lc, t->rc, y);
-		assert(x->fa == y);
 		if (y == null) {
 			root = x;
 			return;
 		}
 		(y->lc == t ? y->lc : y->rc) = x;
 		for ( ; y != null; x = y, y = y->fa) {
-			if (y->lc->dist < y->rc->dist)
-				swap(y->lc, y->rc);
+			if (y->lc->dist < y->rc->dist) {
+				Tree tmp = y->lc;
+				y->lc = y->rc;
+				y->rc = tmp;
+			}
 			if (y->rc->dist + 1 == y->dist)
 				break;
 			y->dist = y->rc->dist + 1;
@@ -200,6 +207,7 @@ public:
 				toVisit = from->root;
 			}
 			else {
+				--from->_size;
 				last->del = true;
 				forgetMeNot.add(last);
 			}
@@ -265,8 +273,9 @@ public:
 	}
 
 	void push(const V &value) {
-		Tree newNode = new (getNode()) Node(value);
+		Tree newNode = new (getNode()) Node(value, null);
 		root = merge(root, newNode, null);
+		++_size;
 	}
 
 	void pop() {
@@ -275,6 +284,7 @@ public:
 		
 		tmp->~Node();
 		free(tmp);
+		--_size;
 	}
 
 	int size() const {
@@ -284,5 +294,6 @@ public:
 
 #undef getTreeArray
 #undef getNode
+#undef getValue
 
 #endif

@@ -92,7 +92,7 @@ public:
 			clear();
 			header->~Node();
 			free(header);
-			cloneTo(header, _size);
+			c.cloneTo(header, _size);
 		}
 		return *this;
 	}
@@ -208,6 +208,7 @@ public:
 	void removeFirst() {
 		if (_size == 0)
 			throw ElementNotExist(toString(__LINE__));
+		--_size;
 		List p = header->next, left = p->prev, right = p->next;
 		left->next = right;
 		right->prev = left;
@@ -218,6 +219,7 @@ public:
 	void removeLast() {
 		if (_size == 0)
 			throw ElementNotExist(toString(__LINE__));
+		--_size;
 		List p = header->prev, left = p->prev, right = p->next;
 		left->next = right;
 		right->prev = left;
@@ -234,12 +236,12 @@ public:
 		p->data = element;
 	}
 	
-	Iterator iterator() {
-		return Iterator(this, header);
-	}
-	
 	int size() const {
 		return _size;
+	}
+	
+	Iterator iterator() {
+		return Iterator(this, header);
 	}
 };
 

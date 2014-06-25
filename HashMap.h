@@ -8,12 +8,13 @@
 	#include "memwatch.h"
 #endif
 
+#include <cassert>
 #include "ElementNotExist.h"
 #include "Utility.h"
 
-#define getNode() ((Entry *)malloc(sizeof(Entry)))
-#define getType(type) ((type*)malloc(sizeof(type)))
-#define getArray(size) ((List*)malloc(sizeof(List) * size))
+#define getNode()		(	(Node*)		malloc		(sizeof(Node)		)		)
+#define getType(type)	(	(type*)		malloc		(sizeof(type)		)		)
+#define getArray(size)	(	(List*)		malloc		(sizeof(List) * size)		)
 
 template<class K, class V, class H>
 class HashMap {
@@ -27,37 +28,46 @@ public:
 	class Iterator;
 
 	class Entry {
-
 		friend Iterator;
-		friend HashMap;
-
 	private:
 		Kp key;
 		Vp value;
-		int hashCode;
-		Entry *next, *l, *r;
 
-	public:
-		Entry(): key(NULL), value(NULL), hashCode(0), next(NULL), l(this), r(this) {
+		Entry(Kp key, Vp value): key(key), value(value) {
 		}
 
-		Entry(const K &key, const V &value):
+	public:
+		Entry(): key(NULL), value(NULL) {
+		}
+		
+		K getKey() const {
+			return *key;
+		}
+		
+		V getValue() const {
+			return *value;
+		}
+	};
+	
+private:
+	class Node {
+	public:
+		Kp key;
+		Vp value;
+		int hashCode;
+		Node *next, *l, *r;
+		Node(): key(NULL), value(NULL), hashCode(0), next(NULL), l(this), r(this) {
+		}
+
+		Node(const K &key, const V &value):
 			key(new (getType(K)) K(key)), value(new (getType(V)) V(value)), hashCode(getHashCode.hashCode(key)), next(NULL), l(NULL), r(NULL) {
 		}
 
-		Entry(const K &key, const V &value, const int &hashCode):
+		Node(const K &key, const V &value, const int &hashCode):
 			key(new (getType(K)) K(key)), value(new (getType(V)) V(value)), hashCode(hashCode), next(NULL), l(NULL), r(NULL) {
 		}
 
-		const K& getKey() const {
-			return *key;
-		}
-
-		const V& getValue() const {
-			return *value;
-		}
-		
-		~Entry() {
+		~Node() {
 			if (key) {
 				key->~K();
 				free(key);
@@ -70,7 +80,7 @@ public:
 	};
 
 private:
-	typedef Entry *List;
+	typedef Node *List;
 
 	const static double LOAD_FACTOR = 0.50;
 	const static int TABLE_SIZE[];
@@ -86,11 +96,13 @@ private:
 			List* newPool = getArray(capacity);
 			for (int i = 0; i < capacity; ++i) newPool[i] = NULL;
 
+			int cnt = 0;
 			for (List p = header->r; p != header; p = p->r) {
 				int h = p->hashCode % capacity;
 				if (h < 0) h += capacity;
 				p->next = newPool[h];
 				newPool[h] = p;
+				++cnt;
 			}
 			if (pool) free(pool);
 			pool = newPool;
@@ -101,11 +113,11 @@ private:
 		otherSize = _size;
 		otherHashModPtr = hashModPtr;
 		otherCapacity = capacity;
-		otherHeader = new ( getNode() ) Entry();
+		otherHeader = new ( getNode() ) Node();
 		otherPool = getArray(capacity);
 		for (int i = 0; i < capacity; ++i) otherPool[i] = NULL;
 		for (List p = header->r; p != header; p = p->r) {
-			List element = new (getNode()) Entry();
+			List element = new (getNode()) Node();
 			element->key = new (getType(K)) K(*p->key);
 			element->value = new (getType(V)) V(*p->value);
 			element->hashCode = p->hashCode;
@@ -128,7 +140,7 @@ private:
 
 		for (List p = header->r, next; p != header; p = next) {
 			next = p->r;
-			p->~Entry();
+			p->~Node();
 			free(p);
 		}
 		header->l = header->r = header;
@@ -150,17 +162,18 @@ public:
 			return header != NULL && p != NULL && p->r != header;
 		}
 
-		const Entry &next() {
+		Entry next() {
 			if (!hasNext())
 				throw ElementNotExist(toString(__LINE__));
 			p = p->r;
-			return *p;
+			return Entry(p->key, p->value);
 		}
 	};
 
 	HashMap(): 
 		getHashCode(), _size(0), hashModPtr(0), capacity(TABLE_SIZE[0]), 
-		header(new (getNode()) Entry()), pool(getArray(capacity)) {
+		header(new (getNode()) Node()),
+		pool(getArray(capacity)) {
 		for (int i = 0; i < capacity; ++i)
 			pool[i] = NULL;
 	}
@@ -168,17 +181,20 @@ public:
 	HashMap(const HashMap<K, V, H> &other): getHashCode(other.getHashCode), _size(0), hashModPtr(0), capacity(0), header(NULL), pool(NULL) {
 		other.cloneTo(_size, hashModPtr, capacity, header, pool);
 	}
-	
+
 	~HashMap() {
 		destroy();
-		header->~Entry();
+		header->~Node();
 		free(header);
 		header = NULL;
 	}
-	
+
 	HashMap<K, V, H>& operator = (const HashMap<K, V, H> &other) {
 		if (this != &other) {
 			destroy();
+			header->~Node();
+			free(header);
+			header = NULL;
 			getHashCode = other.getHashCode;
 			other.cloneTo(_size, hashModPtr, capacity, header, pool);
 		}
@@ -231,19 +247,16 @@ public:
 		if (h < 0) h += capacity;
 		for (List p = pool[h]; p; p = p->next)
 			if (code == p->hashCode && *p->key == key) {
-				if (*p->value != value) {
-					p->value->~V();
-					free(p->value);
-					p->value = new (getType(V)) V(value);
-				}
+				p->value->~V();
+				free(p->value);
+				p->value = new (getType(V)) V(value);
 				return;
 			}
-		++_size;
-		List p = new (getNode()) Entry(key, value, code), l = p->l = header->l, r = p->r = header;
+		List p = new (getNode()) Node(key, value, code), l = p->l = header->l, r = p->r = header;
 		l->r = r->l = p;
 		p->next = pool[h];
 		pool[h] = p;
-		ensureCapacity(_size + 1);
+		ensureCapacity(++_size);
 	}
 	
 	void remove(const K &key) {
@@ -260,7 +273,7 @@ public:
 				List l = p->l, r = p->r;
 				l->r = r;
 				r->l = l;
-				p->~Entry();
+				p->~Node();
 				free(p);
 				--_size;
 				return;
@@ -289,8 +302,7 @@ const int HashMap<K, V, H>::TABLE_SIZE[] = {
 */
 
 #undef getNode
-#undef getKey
-#undef getValue
+#undef getType
 #undef getArray
 
 #endif

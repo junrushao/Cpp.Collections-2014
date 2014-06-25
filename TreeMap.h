@@ -8,6 +8,7 @@
 	#include "memwatch.h"
 #endif
 
+#include <ctime>
 #include "ElementNotExist.h"
 #include "Utility.h"
 
@@ -214,7 +215,7 @@ public:
 		}
 	};
 	
-	TreeMap(): seed(time(NULL)), _size(0), null(new (getNode()) Node()), root(null) {
+	TreeMap(): seed((unsigned int)time(NULL)), _size(0), null(new (getNode()) Node()), root(null) {
 	}
 
 	~TreeMap() {
