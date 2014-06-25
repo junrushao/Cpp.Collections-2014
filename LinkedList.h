@@ -12,7 +12,7 @@
 #include "ElementNotExist.h"
 #include "Utility.h"
 
-#define getNode() ((Node *)malloc(sizeof(Node)))
+#define getNode()	(	(Node *)	malloc	(sizeof(Node)	)	)
 
 template<class T>
 class LinkedList {
@@ -49,33 +49,37 @@ public:
 	public:
 
 		LinkedList<T> *list;
-		List p;
-		
-		Iterator(LinkedList<T> *list, List &p):
-			list(list), p(p) {
+		List lastPos, nextPos;
+
+		Iterator(): list(NULL), lastPos(NULL), nextPos(NULL) {
 		}
-		
+
+		Iterator(LinkedList<T> *list):
+			list(list), lastPos(list->header), nextPos(lastPos->next) {
+		}
+
 		bool hasNext() {
-			return p->next != list->header;
+			return list != NULL && nextPos != list->header;
 		}
 		
 		const T& next() {
-			if (p->next == list->header)
+			if (!hasNext())
 				throw ElementNotExist(toString(__LINE__));
-			p = p->next;
-			return p->data;
+			lastPos = nextPos;
+			nextPos = nextPos->next;
+			return lastPos->data;
 		}
 		
 		void remove() {
-			if (p == list->header)
+			if (lastPos == list->header)
 				throw ElementNotExist(toString(__LINE__));
 			--list->_size;
-			List left = p->prev, right = p->next;
+			List left = lastPos->prev, right = lastPos->next;
 			left->next = right;
 			right->prev = left;
-			p->~Node();
-			free(p);
-			p = left;
+			lastPos->~Node();
+			free(lastPos);
+			lastPos = list->header;
 		}
 	};
 
@@ -240,8 +244,8 @@ public:
 		return _size;
 	}
 	
-	Iterator iterator() {
-		return Iterator(this, header);
+	Iterator iterator() const {
+		return Iterator(const_cast<LinkedList<T>*>(this));
 	}
 };
 

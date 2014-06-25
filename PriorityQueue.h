@@ -159,18 +159,18 @@ public:
 	class Iterator {
 	private:
 		PriorityQueue<V, C> *from;
-		Tree null, last, toVisit;
+		Tree null, lastPos, nextPos;
 		ArrayList<Tree> forgetMeNot;
 		
 		Tree getNext(Tree p) {
 			if (p == null) return from->root;
 			if (p->lc != null) return p->lc;
 			if (p->rc != null) return p->rc;
-			for (Tree last; ; ) {
-				last = p;
+			for (Tree lastPos; ; ) {
+				lastPos = p;
 				p = p->fa;
 				if (p == null) return null;
-				if (p->lc == last && p->rc != null) {
+				if (p->lc == lastPos && p->rc != null) {
 					p = p->rc;
 					break;
 				}
@@ -180,36 +180,37 @@ public:
 
 	public:
 
-		Iterator(): from(NULL), null(NULL), last(NULL), toVisit(NULL) {
+		Iterator(): from(NULL), null(NULL), lastPos(NULL), nextPos(NULL) {
 		}
 
-		Iterator(PriorityQueue<V, C> *from): from(from), null(from->null), last(null), toVisit(from->root) {
+		Iterator(PriorityQueue<V, C> *from): from(from), null(from->null), lastPos(null), nextPos(from->root) {
 		}
 
 		bool hasNext() {
-			return from != NULL && toVisit != null;
+			return from != NULL && nextPos != null;
 		}
 
 		const V &next() {
 			if (!hasNext())
 				throw ElementNotExist(toString(__LINE__));
-			last = toVisit;
-			toVisit = getNext(toVisit);
-			return *last->key;
+			lastPos = nextPos;
+			nextPos = getNext(nextPos);
+			return *lastPos->key;
 		}
 
 		void remove() {
-			if (last == null)
+			if (lastPos == null)
 				throw ElementNotExist(toString(__LINE__));
-			if (last == from->root) {
+			if (lastPos == from->root) {
 				from->pop();
-				last = null;
-				toVisit = from->root;
+				lastPos = null;
+				nextPos = from->root;
 			}
 			else {
 				--from->_size;
-				last->del = true;
-				forgetMeNot.add(last);
+				lastPos->del = true;
+				forgetMeNot.add(lastPos);
+				lastPos = null;
 			}
 		}
 		

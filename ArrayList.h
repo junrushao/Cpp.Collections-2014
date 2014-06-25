@@ -75,27 +75,34 @@ public:
 
 	private:
 		ArrayList<T> *from;
-		int pos;
+		int lastPos, nextPos;
 
 	public:
 
-		Iterator(ArrayList<T> *from, const int &pos): from(from), pos(pos) {
+		Iterator(): from(NULL), lastPos(-1), nextPos(0) {
+		}
+
+		Iterator(ArrayList<T> *from): from(from), lastPos(-1), nextPos(0) {
 		}
 
 		bool hasNext() const {
-			return pos + 1 < from->_size;
+			return from != NULL && nextPos < from->_size;
 		}
 
 		const T& next() {
 			if (!hasNext())
 				throw ElementNotExist(toString(__LINE__));
-			return from->get(++pos);
+			lastPos = nextPos;
+			++nextPos;
+			return from->get(lastPos);
 		}
 
 		void remove() {
-			if (!(0 <= pos && pos < from->_size))
+			if (!(from != NULL && 0 <= lastPos && lastPos < from->_size))
 				throw ElementNotExist(toString(__LINE__));
-			from->removeIndex(pos--);
+			from->removeIndex(lastPos);
+			lastPos = -1;
+			--nextPos;
 		}
     };
 
@@ -200,8 +207,8 @@ public:
 		return _size;
 	}
 
-	Iterator iterator() {
-		return Iterator(this, -1);
+	Iterator iterator() const {
+		return Iterator( const_cast<ArrayList<T>*> (this) );
 	}
 };
 

@@ -70,33 +70,37 @@ public:
 	private:
 		const bool dir;
 		Deque<T> *from;
-		int lastPos;
+		int lastPos, nextPos;
 	public:
+		
+		Iterator(): dir(false), from(NULL), lastPos(-1), nextPos(-1) {
+		}
 		
 		Iterator(const bool &dir, Deque<T> *from): dir(dir), from(from) {
 			if (dir == false)
-				lastPos = -1;
+				lastPos = -1, nextPos = 0;
 			else
-				lastPos = from->size();
+				lastPos = -1, nextPos = (int)from->size() - 1;
 		}
 
 		bool hasNext() {
-			int next = lastPos + (dir ? -1 : 1);
-			return 0 <= next && next < from->size();
+			return from != NULL && 0 <= nextPos && nextPos < from->size();
 		}
 
 		const T &next() {
-			int next = lastPos + (dir ? -1 : 1);
-			if (!( 0 <= next && next < from->size() ))
+			if (!hasNext())
 				throw ElementNotExist(toString(__LINE__));
-			return from->get(lastPos = next);
+			lastPos = nextPos;
+			nextPos = nextPos + (dir ? -1 : 1);
+			return from->get(lastPos);
 		}
 		
 		void remove() {
-			if (!(0 <= lastPos && lastPos < from->size()))
+			if (!(from != NULL && lastPos != -1))
 				throw ElementNotExist(toString(__LINE__));
 			from->removeIdx(lastPos);
-			lastPos -= (dir ? -1 : 1);
+			nextPos = lastPos;
+			lastPos = -1;
 		}
 	};
 
