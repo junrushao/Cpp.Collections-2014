@@ -3,254 +3,202 @@
 #define __PRIORITYQUEUE_H
 
 #define _DEBUG
-#ifdef _DEBIG
+#ifdef _DEBUG
 	#include "memwatch.h"
 #endif
 
+#include <cassert>
 #include "Utility.h"
 #include "ArrayList.h"
 #include "ElementNotExist.h"
 
-template<class V>
+template <class V>
 class Less {
 public:
-	bool operator()(const V& a, const V& b) {
+	bool operator() (const V& a, const V& b) {
 		return a < b;
 	}
 };
 
-#define getNode()			( (Node *) 	malloc	(sizeof(Node))			)
-#define getValue()			( (V *) 	malloc	(sizeof(V))				)
-#define getTreeArray(size)	( (Tree *)	malloc	(sizeof(Tree) * size)	)
+#define getArray(size) ((Vp*)malloc(sizeof(Vp) * size))
+#define getNode() ((Vp)malloc(sizeof(V)))
 
 template<class V, class C = Less<V> >
 class PriorityQueue {
 private:
-
 	typedef V *Vp;
 
-	class Node {
-	public:
-		Vp key;
-		int dist;
-		Node *lc, *rc, *fa;
-		bool del;
-
-		Node(): key(NULL), dist(-1), lc(this), rc(this), fa(this), del(false) {
-		}
-
-		Node(const V &key, Node *null): key(new (getValue()) V(key)), dist(0), lc(null), rc(null), fa(null), del(false) {
-		}
-
-		~Node() {
-			if (key) {
-				free(key);
-				key = NULL;
-			}
-		}
-	};
-
-	typedef Node *Tree;
-
-	int _size;
-	Tree null, root;
 	C compare;
 
-	Tree* copyToTreeArray(int &otherSize, Tree otherNull) const {
-		if (root == null) return NULL;
+	Vp *queue;
+	int capacity;
+	int _size;
 
-		int head = 0, tail = 0;
-		Tree *p = getTreeArray(_size);
-		for (p[tail++] = root; head < tail; ) {
-			Tree x = p[head++];
-			if (x->lc != null)
-				p[tail++] = x->lc;
-			if (x->rc != null)
-				p[tail++] = x->rc;
-		}
-		otherSize = 0;
-		for (int i = 0; i < tail; ++i)
-			if (!p[i]->del) {
-				p[otherSize++] = new (getNode()) Node(*p[i]->key, otherNull);
-			}
-		if (otherSize == 0) {
-			if (p) free(p);
-			return NULL;
-		}
-		return p;
+	void cloneTo(Vp *&otherQueue, int &otherCapacity, int &otherSize) const {
+		otherQueue = getArray(capacity);
+		otherCapacity = capacity;
+		otherSize = _size;
+		for (int i = 0; i < _size; ++i) otherQueue[i] = new (getNode()) V(*queue[i]);
+		for (int i = _size; i < capacity; ++i) otherQueue[i] = NULL;
 	}
 
-	Tree* convertToTreeArray(const ArrayList<V> &x, int &otherSize) {
-		otherSize = x.size();
-		if (otherSize == 0)
-			return NULL;
-		Tree *p = getTreeArray(otherSize);
-		for (int i = 0; i < otherSize; ++i)
-			p[i] = new (getNode()) Node(x.get(i), null);
-		return p;
-	}
+	void grow(int minCapacity) {
+		if (minCapacity > capacity) {
+			capacity <<= 1;
+			if (minCapacity > capacity) capacity = minCapacity;
 
-	Tree buildFromTreeArray(Tree *p, const int &size) { // [0, size)
-		if (p == NULL) return null;
-
-		int head = 0, tail = size; // [head, tail)
-		while (tail - head > 1) {
-			Tree x = p[head++ % size];
-			Tree y = p[head++ % size];
-			p[tail++ % size] = merge(x, y, null);
+			Vp *newQueue = getArray(capacity);
+			for (int i = 0; i < _size; ++i)
+				newQueue[i] = queue[i];
+			for (int i = _size; i < capacity; ++i) newQueue[i] = NULL;
+			if (queue) free(queue);
+			queue = newQueue;
 		}
-		Tree ret = p[head % size];
-		if (p) free(p);
-		return ret;
-	}
-	
-	void deleteTree(Tree t) {
-		if (t == null) return;
-		deleteTree(t->lc);
-		deleteTree(t->rc);
-		t->~Node();
-		free(t);
 	}
 
-	Tree merge(Tree a, Tree b, Tree fa) {
-		Tree ret = NULL;
-		if (a == null) ret = b;
-		else if (b == null) ret = a;
-		else {
-			if (compare(*b->key, *a->key)) { // b->key < a->key
-				Tree tmp = a;
-				a = b;
-				b = tmp;
-			}
-			a->rc = merge(a->rc, b, a);
-			if (a->lc->dist < a->rc->dist) {
-				Tree tmp = a->lc;
-				a->lc = a->rc;
-				a->rc = tmp;
-			}
-			a->dist = a->rc->dist + 1;
-			ret = a;
-		}
-		if (ret != null)
-			ret->fa = fa;
-		return ret;
+	void siftUp(int k, Vp x) {
+		while (k > 0) {
+			int parent = (k - 1) >> 1;
+			Vp e = queue[parent];
+			if (!compare(*x, *e)) break; // x >= e
+            queue[k] = e;
+            k = parent;
+        }
+        queue[k] = x;
 	}
 
-	void deleteNode(Tree t) { // only used for Iterator::~Iterator, with _size not changed
-		Tree y = t->fa, x = merge(t->lc, t->rc, y);
-		if (y == null) {
-			root = x;
-			return;
-		}
-		(y->lc == t ? y->lc : y->rc) = x;
-		for ( ; y != null; x = y, y = y->fa) {
-			if (y->lc->dist < y->rc->dist) {
-				Tree tmp = y->lc;
-				y->lc = y->rc;
-				y->rc = tmp;
-			}
-			if (y->rc->dist + 1 == y->dist)
+	void siftDown(int k, Vp x) {
+		int half = _size >> 1;
+		while (k < half) {
+			int child = (k << 1) + 1;
+			Vp c = queue[child];
+			int right = child + 1;
+			if (right < _size && compare(*queue[right], *c)) // queue[right] < queue[left]
+				c = queue[child = right];
+			if (!compare(*c, *x)) // x <= c
 				break;
-			y->dist = y->rc->dist + 1;
+			queue[k] = c;
+			k = child;
 		}
+		queue[k] = x;
 	}
 
-public:
-	class Iterator {
-	private:
-		PriorityQueue<V, C> *from;
-		Tree null, lastPos, nextPos;
-		ArrayList<Tree> forgetMeNot;
+	int removeAt(int i, int limit) { // return where queue[_size - 1] has gone
+		assert(0 <= i && i < _size);
+		assert(i < limit);
+		int s = --_size;
+		if (s == i) {
+			queue[s]->~V();
+			free(queue[s]);
+			queue[s] = NULL;
+			return -1;
+		}
+		Vp x = queue[s];
+		queue[s] = NULL;
+		queue[i]->~V();
+		free(queue[i]);
+		queue[i] = NULL;
 		
-		Tree getNext(Tree p) {
-			if (p == null) return from->root;
-			if (p->lc != null) return p->lc;
-			if (p->rc != null) return p->rc;
-			for (Tree lastPos; ; ) {
-				lastPos = p;
-				p = p->fa;
-				if (p == null) return null;
-				if (p->lc == lastPos && p->rc != null) {
-					p = p->rc;
+		int moveInside = i, k = i;
+		{ // siftDown
+			for (int child; (child = (k << 1) + 1) < _size; k = child) {
+				Vp c = queue[child];
+				if (child + 1 < _size && compare(*queue[child + 1], *c)) // queue[right] < queue[left]
+					c = queue[++child];
+				if (!compare(*c, *x)) // x <= c
 					break;
+				queue[k] = c;
+				if (k < limit && child < limit) {
+					moveInside = child;
+				}
+				else if (k < limit && child >= limit) {
+					moveInside = k;
 				}
 			}
-			return p;
+			queue[k] = x;
+			if (k != i)
+				return moveInside;
 		}
+		assert(k == i && moveInside == i && queue[i] == x);
+		for (int parent; k > 0; k = parent) {
+			Vp e = queue[parent = (k - 1) >> 1];
+			if (!compare(*x, *e)) break; // x >= e
+            queue[k] = e;
+        }
+        queue[k] = x;
+		return k;
+	}
+	
+public:
 
+	class Iterator {
 	public:
+		PriorityQueue<V, C> *pq;
+		int lastPos, nextPos, extraPos;
 
-		Iterator(): from(NULL), null(NULL), lastPos(NULL), nextPos(NULL) {
+		Iterator(PriorityQueue<V, C> *pq): pq(pq), lastPos(-1), nextPos(0), extraPos(-1) {
 		}
 
-		Iterator(PriorityQueue<V, C> *from): from(from), null(from->null), lastPos(null), nextPos(from->root) {
+		Iterator(): pq(NULL), lastPos(-1), nextPos(-1), extraPos(-1) {
 		}
 
 		bool hasNext() {
-			return from != NULL && nextPos != null;
+			return pq != NULL && ((0 <= nextPos && nextPos < pq->_size) || extraPos != -1);
 		}
 
 		const V &next() {
 			if (!hasNext())
 				throw ElementNotExist(toString(__LINE__));
-			lastPos = nextPos;
-			nextPos = getNext(nextPos);
-			return *lastPos->key;
+			Vp ret = NULL;
+			if (extraPos != -1) {
+				ret = pq->queue[extraPos];
+				lastPos = extraPos;
+				extraPos = -1;
+			}
+			else {
+				ret = pq->queue[nextPos];
+				lastPos = nextPos;
+				++nextPos;
+			}
+			return *ret;
 		}
 
 		void remove() {
-			if (lastPos == null)
+			if (!pq || lastPos == -1)
 				throw ElementNotExist(toString(__LINE__));
-			if (lastPos == from->root) {
-				from->pop();
-				lastPos = null;
-				nextPos = from->root;
-			}
-			else {
-				--from->_size;
-				lastPos->del = true;
-				forgetMeNot.add(lastPos);
-				lastPos = null;
-			}
-		}
-		
-		~Iterator() {
-			int tmpSize = forgetMeNot.size();
-			for (int i = 0; i < tmpSize; ++i) {
-				Tree t = forgetMeNot.get(i);
-				from->deleteNode(t);
-				t->~Node();
-				free(t);
-			}
+			int pos = pq->removeAt(lastPos, nextPos);
+			if (pos < nextPos) extraPos = pos;
+			lastPos = -1;
 		}
 	};
 
-	PriorityQueue(): _size(0), null(new (getNode()) Node()), root(null), compare() {
+	PriorityQueue(): queue(NULL), capacity(0), _size(0) {
 	}
 
 	~PriorityQueue() {
 		clear();
-		null->~Node();
-		free(null);
 	}
-
-	PriorityQueue<V, C>& operator=(const PriorityQueue<V, C> &x) {
+	
+	PriorityQueue<V, C> &operator = (const PriorityQueue<V, C> &x) {
 		if (this != &x) {
 			clear();
-			Tree *p = x.copyToTreeArray(_size, null);
-			root = buildFromTreeArray(p, _size);
+			x.cloneTo(queue, capacity, _size);
 		}
 		return *this;
 	}
 
-	PriorityQueue(const PriorityQueue<V, C> &x): _size(0), null(new (getNode()) Node()), root(null), compare() {
-		Tree *p = x.copyToTreeArray(_size, null);
-		root = buildFromTreeArray(p, _size);
+	PriorityQueue(const PriorityQueue<V, C> &x): queue(NULL), capacity(0), _size(0) {
+		x.cloneTo(queue, capacity, _size);
 	}
 
-	PriorityQueue(const ArrayList<V> &x): _size(0), null(new (getNode()) Node()), root(null), compare()  {
-		Tree *p = convertToTreeArray(x, _size);
-		root = buildFromTreeArray(p, _size);
+	PriorityQueue(const ArrayList<V> &x): queue(NULL), capacity(0), _size(x.size()) {
+		if (_size > 0) {
+			for (capacity = 11; capacity < _size; capacity <<= 1);
+			queue = getArray(capacity);
+			for (int i = 0; i < _size; ++i) queue[i] = new (getNode()) V(x.get(i));
+			for (int i = (_size >> 1) - 1; i >= 0; --i)
+				siftDown(i, queue[i]);
+		}
 	}
 
 	Iterator iterator() {
@@ -258,15 +206,21 @@ public:
 	}
 
 	void clear() {
-		deleteTree(root);
+		for (int i = 0; i < _size; ++i) {
+			queue[i]->~V();
+			free(queue[i]);
+			queue[i] = NULL;
+		}
+		if (queue) free(queue);
+		queue = NULL;
+		capacity = 0;
 		_size = 0;
-		root = null;
 	}
 
 	const V &front() const {
-		if (root == null)
+		if (_size == 0)
 			throw ElementNotExist(toString(__LINE__));
-		return *root->key;
+		return *queue[0];
 	}
 	
 	bool empty() const {
@@ -274,18 +228,23 @@ public:
 	}
 
 	void push(const V &value) {
-		Tree newNode = new (getNode()) Node(value, null);
-		root = merge(root, newNode, null);
+		if (_size >= capacity) grow(_size + 1);
 		++_size;
+		if (_size == 1) queue[0] = new (getNode()) V(value);
+		else siftUp(_size - 1, new (getNode()) V(value));
 	}
 
 	void pop() {
-		Tree tmp = root;
-		root = merge(root->lc, root->rc, null);
-		
-		tmp->~Node();
-		free(tmp);
-		--_size;
+		if (_size == 0)
+			throw ElementNotExist(toString(__LINE__));
+		int s = --_size;
+		Vp toRemove = queue[0];
+		Vp x = queue[s];
+		queue[s] = NULL;
+		if (s != 0)
+			siftDown(0, x);
+		toRemove->~V();
+		free(toRemove);
 	}
 
 	int size() const {
@@ -293,8 +252,7 @@ public:
 	}
 };
 
-#undef getTreeArray
+#undef getArray
 #undef getNode
-#undef getValue
 
 #endif
